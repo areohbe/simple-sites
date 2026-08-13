@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NSM Weekly Plans · 7:00 → 9:00</title>
+    <style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1b1f27;
+    --muted: #6b7280;
+    --border: #e4e7ec;
+    --easy: #2f9e6e;
+    --easy-bg: #e7f6ef;
+    --subt: #e0742a;
+    --subt-bg: #fdeede;
+    --long: #3b6fd4;
+    --long-bg: #e8eefb;
+    --head-bg: #f0f2f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12141a;
+      --card: #1c1f28;
+      --text: #eceef2;
+      --muted: #9aa1ad;
+      --border: #2b2f3a;
+      --easy: #4cc38a;
+      --easy-bg: #17352a;
+      --subt: #f0954f;
+      --subt-bg: #3d2a18;
+      --long: #7ba3ec;
+      --long-bg: #1f2c48;
+      --head-bg: #232733;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px 12px 40px;
+    max-width: 560px;
+    margin: 0 auto;
+    -webkit-text-size-adjust: 100%;
+  }
+  h1 { font-size: 1.15rem; margin-bottom: 14px; }
+
+  .plan {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .plan-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 11px 14px;
+    background: var(--head-bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .ph-total {
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .ph-total small {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .ph-pct {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--subt);
+    font-variant-numeric: tabular-nums;
+  }
+  .ph-pct small {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .day {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .day:last-child { border-bottom: none; }
+  .dow {
+    width: 32px;
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .chip {
+    font-size: 0.66rem;
+    font-weight: 700;
+    padding: 3px 0;
+    border-radius: 999px;
+    flex-shrink: 0;
+    width: 56px;
+    text-align: center;
+  }
+  .chip.easy { background: var(--easy-bg); color: var(--easy); }
+  .chip.subt { background: var(--subt-bg); color: var(--subt); }
+  .chip.long { background: var(--long-bg); color: var(--long); }
+  .desc {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.84rem;
+    font-weight: 600;
+  }
+  .dur {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 0.84rem;
+    flex-shrink: 0;
+  }
+    </style>
+  </head>
+  <body>
+    <h1>NSM Weekly Plans</h1>
+    <div id="plans">
+    </div>
+    <script>
+(function () {
+  // Book-layout anchor rows (tables 2.9 / 3.0 / 3.1): [dayMon0, type, minutes, scheme].
+  // Scheme "3x11" = 3 reps x 11 min. Mirrors training/constants.PLAN_ANCHORS.
+  var ANCHORS = [
+    [420, [
+      [0, 'E', 55, ''], [1, 'S', 60, '3x11'], [2, 'E', 55, ''], [3, 'S', 55, '5x6'],
+      [4, 'E', 50, ''], [5, 'S', 60, '10x3'], [6, 'L', 85, '']
+    ]],
+    [450, [
+      [0, 'E', 60, ''], [1, 'S', 65, '3x12'], [2, 'E', 60, ''], [3, 'S', 55, '5x6'],
+      [4, 'E', 55, ''], [5, 'S', 60, '10x3'], [6, 'L', 95, '']
+    ]],
+    [480, [
+      [0, 'E', 60, ''], [1, 'S', 70, '4x10'], [2, 'E', 60, ''], [3, 'S', 65, '6x6'],
+      [4, 'E', 60, ''], [5, 'S', 60, '10x3'], [6, 'L', 105, '']
+    ]]
+  ];
+
+  // Mirrors training/services.generate_week_plan: largest anchor <= target, then the
+  // book's interim rule (+1 three-minute rep + 12' easy per 15-min step, max 2 bumps),
+  // leftovers spread minute-by-minute across long run first, then easy days.
+  function generate(target) {
+    var anchor = ANCHORS[0];
+    for (var i = 0; i < ANCHORS.length; i++) {
+      if (ANCHORS[i][0] <= target) anchor = ANCHORS[i];
+    }
+    var rows = anchor[1].map(function (r) {
+      return { day: r[0], type: r[1], min: r[2], scheme: r[3], split: null };
+    });
+    var remainder = target - anchor[0];
+    var bumps = 0, easyPool = 0;
+    while (remainder >= 15 && bumps < 2) {
+      var short_ = rows.filter(function (r) { return /x3$/.test(r.scheme); })[0];
+      var count = parseInt(short_.scheme, 10) + 1;
+      short_.scheme = count + 'x3';
+      short_.min += 3;
+      remainder -= 15;
+      easyPool += 12;
+      bumps += 1;
+    }
+    easyPool += remainder;
+    var grow = rows.filter(function (r) { return r.type === 'E' || r.type === 'L'; })
+      .sort(function (a, b) {
+        var la = a.type === 'L' ? 0 : 1, lb = b.type === 'L' ? 0 : 1;
+        return la - lb || a.day - b.day;
+      });
+    var idx = 0;
+    while (easyPool > 0) {
+      grow[idx % grow.length].min += 1;
+      easyPool -= 1;
+      idx += 1;
+    }
+    return rows;
+  }
+
+  function clone(rows) {
+    return rows.map(function (r) {
+      return { day: r.day, type: r.type, min: r.min, scheme: r.scheme, split: r.split };
+    });
+  }
+
+  // 7:00 -> 8:00 in 12-minute steps via the interim rule.
+  var plans = [420, 432, 444, 456, 468, 480].map(function (t) {
+    return { total: t, rows: generate(t) };
+  });
+
+  // Above 8 h the book adds easy doubles, workouts unchanged (pp. 162-163).
+  // Book-layout easy days Wed(2) and Fri(4) double first, then the long day.
+  var d1 = clone(plans[5].rows);
+  d1[2].min = 75; d1[2].split = 'AM 35′ + PM 40′';
+  plans.push({ total: 495, rows: d1 });
+
+  var d2 = clone(d1);
+  d2[4].min = 75; d2[4].split = 'AM 35′ + PM 40′';
+  plans.push({ total: 510, rows: d2 });
+
+  var d3 = clone(d2); // = book table 3.2
+  d3[6].min = 125; d3[6].split = 'AM 1:30 + PM 35′';
+  plans.push({ total: 530, rows: d3 });
+
+  function subTMin(rows) {
+    return rows.reduce(function (acc, r) {
+      if (r.type !== 'S') return acc;
+      var p = r.scheme.split('x');
+      return acc + parseInt(p[0], 10) * parseInt(p[1], 10);
+    }, 0);
+  }
+
+  function hmm(min) {
+    var h = Math.floor(min / 60), m = min % 60;
+    return h + ':' + (m < 10 ? '0' : '') + m;
+  }
+
+  // User layout: Mon=book Sun (long), Tue=book Mon, Wed=book Sat (3'),
+  // Thu=book Wed, Fri=book Thu (6'), Sat=book Fri, Sun=book Tue (10').
+  var ORDER = [6, 0, 5, 2, 3, 4, 1];
+  var DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  function dayRow(dow, kind, label, main, dur) {
+    return '<div class="day"><div class="dow">' + dow + '</div>' +
+      '<div class="chip ' + kind + '">' + label + '</div>' +
+      '<div class="desc">' + main + '</div>' +
+      '<div class="dur">' + hmm(dur) + '</div></div>';
+  }
+
+  document.getElementById('plans').innerHTML = plans.map(function (p) {
+    var subT = subTMin(p.rows);
+    var pct = (subT / p.total * 100).toFixed(1);
+    var byDay = {};
+    p.rows.forEach(function (r) { byDay[r.day] = r; });
+
+    var days = ORDER.map(function (bookDay, i) {
+      var r = byDay[bookDay];
+      if (r.type === 'L') {
+        return dayRow(DOW[i], 'long', 'LONG', r.split || hmm(r.min) + ' steady', r.min);
+      }
+      if (r.type === 'E') {
+        return dayRow(DOW[i], 'easy', 'EASY', r.split || r.min + ' min', r.min);
+      }
+      var parts = r.scheme.split('x');
+      return dayRow(DOW[i], 'subt', 'SUB-T', parts[0] + ' × ' + parts[1] + ':00', r.min);
+    }).join('');
+
+    return '<div class="plan">' +
+      '<div class="plan-head">' +
+      '<div class="ph-total">' + hmm(p.total) + ' <small>/ week</small></div>' +
+      '<div class="ph-pct">' + pct + '% <small>sub-T</small></div>' +
+      '</div>' + days + '</div>';
+  }).join('');
+})();
+    </script>
+  </body>
+</html>
