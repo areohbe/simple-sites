@@ -246,7 +246,7 @@
     var days = ORDER.map(function (bookDay, i) {
       var r = byDay[bookDay];
       if (r.type === 'L') {
-        return dayRow(DOW[i], 'long', 'LONG', r.split || hmm(r.min) + ' steady', r.min);
+        return dayRow(DOW[i], 'long', 'LONG', r.split || r.min + ' min', r.min);
       }
       if (r.type === 'E') {
         return dayRow(DOW[i], 'easy', 'EASY', r.split || r.min + ' min', r.min);
